@@ -7,7 +7,7 @@ from sampling import sample
 from tokenizer import BPETokenizer
 
 
-def generate_example(model: Transformer, tokenizer: BPETokenizer, prompt: str, max_new_tokens: int) -> str:
+def generate_example(model: Transformer, tokenizer: BPETokenizer, prompt: str, max_new_tokens: int, temperature: float = 1.0) -> str:
   ids = tokenizer.encode(prompt)
   assert len(ids) + max_new_tokens <= model.config.max_seq_len, f'prompt ({len(ids)}) + max_new ({max_new_tokens}) exceeds max_seq_len ({model.config.max_seq_len})'
   device = next(model.parameters()).device
@@ -15,11 +15,11 @@ def generate_example(model: Transformer, tokenizer: BPETokenizer, prompt: str, m
   with torch.no_grad():
     x = torch.tensor(ids, dtype=torch.long, device=device).unsqueeze(0)
     logits = model(x)[0]
-    ids.append(sample(logits[-1]))
+    ids.append(sample(logits[-1], temperature))
     for _ in range(max_new_tokens - 1):
       x = torch.tensor([ids[-1]], dtype=torch.long, device=device).unsqueeze(0)
       logits = model(x)[0]
-      ids.append(sample(logits[-1]))
+      ids.append(sample(logits[-1], temperature))
   model.clear_cache()
   return tokenizer.decode(ids)
 
