@@ -7,11 +7,9 @@ from sampling import sample
 from tokenizer import BPETokenizer, ENDOFTEXT
 
 
-def generate_example(model: Transformer, tokenizer: BPETokenizer, prompt: str, max_new_tokens: int, temperature: float = 1.0) -> str:
-  ids = tokenizer.encode(prompt)
-  assert len(ids) + max_new_tokens <= model.config.max_seq_len, f'prompt ({len(ids)}) + max_new ({max_new_tokens}) exceeds max_seq_len ({model.config.max_seq_len})'
-  eot_id = tokenizer.special_stoi.get(ENDOFTEXT)
+def _sample_ids(model: Transformer, prompt_ids: list[int], max_new_tokens: int, temperature: float, eot_id: int | None) -> list[int]:
   device = next(model.parameters()).device
+  ids = list(prompt_ids)
   model.enable_cache()
   with torch.no_grad():
     x = torch.tensor(ids, dtype=torch.long, device=device).unsqueeze(0)
@@ -23,6 +21,14 @@ def generate_example(model: Transformer, tokenizer: BPETokenizer, prompt: str, m
       ids.append(next_id)
       x = torch.tensor([next_id], dtype=torch.long, device=device).unsqueeze(0)
   model.clear_cache()
+  return ids
+
+
+def generate_example(model: Transformer, tokenizer: BPETokenizer, prompt: str, max_new_tokens: int, temperature: float = 1.0) -> str:
+  ids = tokenizer.encode(prompt)
+  assert len(ids) + max_new_tokens <= model.config.max_seq_len, f'prompt ({len(ids)}) + max_new ({max_new_tokens}) exceeds max_seq_len ({model.config.max_seq_len})'
+  eot_id = tokenizer.special_stoi.get(ENDOFTEXT)
+  ids = _sample_ids(model, ids, max_new_tokens, temperature, eot_id)
   return tokenizer.decode(ids)
 
 
